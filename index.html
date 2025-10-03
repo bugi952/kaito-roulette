@@ -30,7 +30,7 @@
 <body>
   <main>
     <div id="slot" class="slot"><div class="fallback">?</div></div>
-    <button id="startBtn" class="btn">Spin 🎲</button>
+    <button id="startBtn" class="btn" disabled>로고 준비 중...</button>
     <div id="result"></div>
   </main>
 
@@ -114,6 +114,7 @@ function shuffle(arr){
 }
 
 function startSpin(){
+  if (startBtn.disabled) return; // 준비 전에는 무시
   if (intervalId) return;
   result.innerHTML = '';
   startBtn.disabled = true;
@@ -126,28 +127,19 @@ function startSpin(){
     pos = (pos + 1) % spinOrder.length;
     showItem(items[i], true);
   }, 50);
-  // 고정 지속시간(원하면 숫자만 바꾸세요)
   stopTimer = setTimeout(stopSpin, 2200);
-}
-
-function stopSpin(){
-  clearInterval(intervalId); intervalId=null; slot.classList.remove('fast');
-  const lastPos = (pos - 1 + spinOrder.length) % spinOrder.length;
-  const chosen = items[spinOrder[lastPos]];
-  showItem(chosen, false);
-  result.innerHTML = `
-    <div class=\"name\">${chosen.name}</div>
-    <div class=\"msg\">축하합니다. 당신은 \"<b>${chosen.name}</b>\" Yapper로 선정되셨습니다.</div>
-  `;
-  startBtn.disabled = false;
 }
 
 startBtn.addEventListener('click', startSpin);
 
 (async function init(){
-  await preload();
-  // 첫 화면은 랜덤 로고 대신 물음표로 유지
+  // 첫 화면: 항상 물음표 유지
   slot.replaceChildren(fallbackBlock('?'));
+  // 프리로드가 끝날 때까지 버튼 비활성화 및 안내 텍스트
+  startBtn.disabled = true; startBtn.textContent = '로고 준비 중...';
+  await preload();
+  // 준비 완료 → 버튼 활성화
+  startBtn.disabled = false; startBtn.textContent = 'Spin 🎲';
 })();
 </script>
 </body>
