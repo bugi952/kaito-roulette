@@ -53,13 +53,12 @@ const items = [
   { name:"Mavryk Network", base:"Mavryk Network" }, { name:"Metawin", base:"Metawin" },
   { name:"Mira", base:"Mira" }, { name:"MultiBank", base:"MultiBank" },
   { name:"Multipli.fi", base:"Multipli.fi" }, { name:"Novastro", base:"Novastro" },
-  { name:"NOYA.ai", base:"NOYA.ai" }, { name:"peaq", base:"peaq" },
-  { name:"Polygon", base:"Polygon" }, { name:"Puffpaw", base:"Puffpaw" },
-  { name:"Pyth", base:"Pyth" }, { name:"Somnia", base:"Somnia" },
-  { name:"Surf", base:"Surf" }, { name:"Talus Labs", base:"Talus Labs" },
-  { name:"Theoriq", base:"Theoriq" }, { name:"Turtle", base:"Turtle" },
-  { name:"UXLINK", base:"UXLINK" }, { name:"Warden", base:"Warden" },
-  { name:"XION", base:"XION" },
+  { name:"peaq", base:"peaq" }, { name:"Polygon", base:"Polygon" },
+  { name:"Puffpaw", base:"Puffpaw" }, { name:"Pyth", base:"Pyth" },
+  { name:"Somnia", base:"Somnia" }, { name:"Surf", base:"Surf" },
+  { name:"Talus Labs", base:"Talus Labs" }, { name:"Theoriq", base:"Theoriq" },
+  { name:"Turtle", base:"Turtle" }, { name:"UXLINK", base:"UXLINK" },
+  { name:"Warden", base:"Warden" }, { name:"XION", base:"XION" }
 ];
 
 const slot = document.getElementById('slot');
@@ -147,7 +146,8 @@ startBtn.addEventListener('click', startSpin);
 
 (async function init(){
   await preload();
-  showItem(items[Math.floor(Math.random()*items.length)]); // 첫 미리보기도 랜덤
+  // 첫 화면은 랜덤 로고 대신 물음표로 유지
+  slot.replaceChildren(fallbackBlock('?'));
 })();
 </script>
 </body>
