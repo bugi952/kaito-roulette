@@ -35,12 +35,11 @@
   </main>
 
 <script>
-/* 심플 버전(요청 반영)
-   - 안내/상태/진단 제거
-   - images/ 폴더에서 확장자 자동 탐색
-   - 매 스핀마다 순서를 셔플해 회전(랜덤 순서)
-   - 정확히 2초 뒤 정지
-   - 첫 화면은 항상 '?' 유지
+/*
+  심플 버전(요청 반영)
+  - 안내문구/상태/진단 모두 제거
+  - images/ 폴더에서 로고를 찾되, 확장자는 자동 탐색
+  - 스핀할 때마다 **표시 순서를 셔플**해서 회전(랜덤 순서)
 */
 
 const items = [
@@ -88,58 +87,53 @@ function tryFindImage(base){
       const src = `images/${baseEnc}.${EXTS[i++]}`;
       const img = new Image();
       img.onload = () => resolve(src);
-      img.onerror = tryNext;
+      img.onerror = tryNext; // 다음 확장자 시도
       img.src = src;
     };
     tryNext();
   });
 }
+
 async function preload(){
   for(const it of items){
     const found = await tryFindImage(it.base);
     srcCache.set(it.base, found);
   }
 }
+
 function showItem(item, fast=false){
   slot.classList.toggle('fast', fast);
   const cached = srcCache.get(item.base);
-  if (cached){ slot.innerHTML = `<img class="logo" alt="${item.name}" src="${cached}">`; }
+  if (cached){ slot.innerHTML = `<img class=\"logo\" alt=\"${item.name}\" src=\"${cached}\">`; }
   else { slot.replaceChildren(fallbackBlock(item.name)); }
 }
+
 function shuffle(arr){
   for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
   return arr;
 }
 
 function startSpin(){
-  if (startBtn.disabled) return;          // 준비 전에는 무시
+  if (startBtn.disabled) return; // 준비 전에는 무시
   if (intervalId) return;
-
   result.innerHTML = '';
   startBtn.disabled = true;
-
-  // 혹시 남아있을 타이머 정리
-  if (stopTimer) { clearTimeout(stopTimer); stopTimer = null; }
-
-  // 매 스핀마다 순서를 랜덤 섞기
+  // 새 스핀마다 순서를 랜덤 섞기
   spinOrder = shuffle([...Array(items.length).keys()]);
   pos = 0;
-
   slot.classList.add('fast');
   intervalId = setInterval(()=>{
     const i = spinOrder[pos];
     pos = (pos + 1) % spinOrder.length;
     showItem(items[i], true);
   }, 50);
-
-  // 정확히 2초 뒤 정지
   stopTimer = setTimeout(stopSpin, 2000);
 }
+
 function stopSpin(){
   if (intervalId) { clearInterval(intervalId); intervalId = null; }
   if (stopTimer)  { clearTimeout(stopTimer);  stopTimer  = null; }
   slot.classList.remove('fast');
-
   const lastPos = (pos - 1 + spinOrder.length) % spinOrder.length;
   const chosen = items[spinOrder[lastPos]];
   showItem(chosen, false);
@@ -154,14 +148,13 @@ function stopSpin(){
 startBtn.addEventListener('click', startSpin);
 
 (async function init(){
-  // 첫 화면: 항상 물음표 유지 + 준비 안내
+  // 첫 화면: 항상 물음표 유지
   slot.replaceChildren(fallbackBlock('?'));
-  startBtn.disabled = true;
-  startBtn.textContent = '잠시만 기다려주세요';
+  // 프리로드가 끝날 때까지 버튼 비활성화 및 안내 텍스트
+  startBtn.disabled = true; startBtn.textContent = '잠시만 기다려주세요';
   await preload();
-  // 준비 완료
-  startBtn.disabled = false;
-  startBtn.textContent = 'Start';
+  // 준비 완료 → 버튼 활성화
+  startBtn.disabled = false; startBtn.textContent = 'Start';
 })();
 </script>
 </body>
