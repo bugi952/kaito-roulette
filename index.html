@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>🎰 Yappers 슬롯 룰렛 (로컬 이미지 + 배포)</title>
+<title>🎰 Yappers 슬롯 룰렛 (심플 · 랜덤 순서)</title>
 <style>
   :root{ --accent:#6c5ce7; --bg1:#f5f8ff; --bg2:#eaf3ff }
   html,body{height:100%;margin:0}
@@ -13,45 +13,34 @@
     background:radial-gradient(1200px 600px at 50% -10%, var(--bg1), var(--bg2)); color:#111;
   }
   main{ width:min(680px,92vw) }
-  .slot{ width:220px;height:220px;border-radius:28px;background:#fff;
-         display:grid;place-items:center;margin:12px auto 18px;
-         box-shadow:0 22px 45px rgba(0,0,0,.12), inset 0 0 0 1px #e5e7eb; overflow:hidden }
+  .slot{ width:220px;height:220px;border-radius:28px;background:#fff; display:grid;place-items:center;margin:12px auto 18px; box-shadow:0 22px 45px rgba(0,0,0,.12), inset 0 0 0 1px #e5e7eb; overflow:hidden }
   .slot.fast{ animation:bump .15s infinite }
-  @keyframes bump{ 0%{transform:translateY(0)} 50%{transform:translateY(2px)} 100%{transform:translateY(0)}}
+  @keyframes bump{ 0%{transform:translateY(0)} 50%{transform:translateY(2px)} 100%{transform:translateY(0)} }
   .slot.fast img{ filter:blur(1px) saturate(1.1) }
   .logo{ width:88%;height:88%;object-fit:contain; display:block }
-  .fallback{ width:100%;height:100%;display:grid;place-items:center;
-             font-weight:900;font-size:64px;color:#fff;
-             background:linear-gradient(135deg,var(--accent),#4b39c5) }
-  .btn{ padding:14px 34px;border:none;border-radius:999px;cursor:pointer;color:#fff;
-        font-weight:800;font-size:18px;background:linear-gradient(135deg,var(--accent),#4b39c5);
-        box-shadow:0 12px 28px rgba(0,0,0,.16);transition:transform .08s,filter .2s }
+  .fallback{ width:100%;height:100%;display:grid;place-items:center;font-weight:900;font-size:64px;color:#fff;background:linear-gradient(135deg,var(--accent),#4b39c5) }
+  .btn{ padding:14px 34px;border:none;border-radius:999px;cursor:pointer;color:#fff;font-weight:800;font-size:18px;background:linear-gradient(135deg,var(--accent),#4b39c5);box-shadow:0 12px 28px rgba(0,0,0,.16);transition:transform .08s, filter .2s }
   .btn:hover{ filter:brightness(1.05) } .btn:active{ transform:translateY(1px) scale(.98) }
   .btn[disabled]{ opacity:.6; cursor:not-allowed }
   #result{ margin-top:18px; min-height:48px }
   #result .name{ font-size:28px; font-weight:900; margin-bottom:6px }
   #result .msg{ font-size:16px; color:#374151 }
-  .small{ color:#6b7280; font-size:12px; margin-top:8px }
-  .progress{ margin-top:6px; height:8px; background:#e5e7eb; border-radius:999px; overflow:hidden }
-  .bar{ height:100%; width:0%; background:linear-gradient(90deg,#86efac,#22c55e) }
-  details{ text-align:left; margin:14px auto 0; max-width:560px; padding:10px 12px; background:#fff; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,.06) }
-  details[open] summary{ margin-bottom:8px } summary{ cursor:pointer; font-weight:700 } ul{ margin:6px 0 0 18px }
 </style>
 </head>
 <body>
   <main>
-    <div class="small" id="status">로고 확인 대기…</div>
-    <div class="progress"><div class="bar" id="bar"></div></div>
-
     <div id="slot" class="slot"><div class="fallback">?</div></div>
-    <button id="startBtn" class="btn" disabled>Spin 🎲</button>
+    <button id="startBtn" class="btn">Spin 🎲</button>
     <div id="result"></div>
-
-    <div class="small">이미지는 <code>images/</code> 폴더에서 자동으로 찾습니다. (PNG/JPG/JPEG/WebP/SVG…)</div>
   </main>
 
 <script>
-/* === 설정 (파일명=확장자 제외) === */
+/*
+  심플 버전
+  - images/ 폴더에서 로고를 찾습니다(확장자 자동 탐색)
+  - 스핀할 때마다 **표시 순서를 셔플**해서 회전합니다(랜덤 순서).
+*/
+
 const items = [
   { name:"Anoma", base:"Anoma" }, { name:"Aptos", base:"Aptos" },
   { name:"Beldex", base:"Beldex" }, { name:"Bitdealer", base:"Bitdealer" },
@@ -72,27 +61,23 @@ const items = [
   { name:"XION", base:"XION" },
 ];
 
-/* === 요소/상태 === */
-const slot   = document.getElementById('slot');
+const slot = document.getElementById('slot');
 const startBtn = document.getElementById('startBtn');
 const result = document.getElementById('result');
-const statusEl = document.getElementById('status');
-const barEl    = document.getElementById('bar');
-const diagBody = document.getElementById('diagBody');
 
-let idx = -1, intervalId = null, stopTimer = null;
-const srcCache = new Map(); // base -> 성공한 이미지 src (없으면 null)
+let intervalId = null;      // 회전 타이머
+let stopTimer  = null;      // 정지 타이머
+let spinOrder  = [];        // 섞인 인덱스 배열
+let pos        = 0;         // 현재 위치(스핀 중)
+const srcCache = new Map(); // base -> 찾은 이미지 경로
 
-/* === 유틸 === */
 function initials(name){
   const parts = (name||'?').trim().split(' ').filter(Boolean);
   return parts.slice(0,2).map(w=>w[0]).join('').toUpperCase();
 }
-function fallbackBlock(name){
-  const d=document.createElement('div'); d.className='fallback'; d.textContent=initials(name||'?'); return d;
-}
-const EXTS = ["png","jpg","jpeg","webp","svg","PNG","JPG","JPEG","WEBP","SVG","gif","GIF","bmp","BMP","ico","ICO","avif","AVIF","jfif","JFIF"];
+function fallbackBlock(name){ const d=document.createElement('div'); d.className='fallback'; d.textContent=initials(name||'?'); return d; }
 
+const EXTS = ["png","jpg","jpeg","webp","svg","PNG","JPG","JPEG","WEBP","SVG","gif","GIF","bmp","BMP","ico","ICO","avif","AVIF","jfif","JFIF"];
 function tryFindImage(base){
   return new Promise((resolve)=>{
     const baseEnc = encodeURIComponent(base);
@@ -102,51 +87,53 @@ function tryFindImage(base){
       const src = `images/${baseEnc}.${EXTS[i++]}`;
       const img = new Image();
       img.onload = () => resolve(src);
-      img.onerror = tryNext;
+      img.onerror = tryNext; // 다음 확장자 시도
       img.src = src;
     };
     tryNext();
   });
 }
 
-/* === 프리로드 === */
-async function preloadAll(){
-  let ok=0, miss=[];
-  for (const it of items){
+async function preload(){
+  for(const it of items){
     const found = await tryFindImage(it.base);
     srcCache.set(it.base, found);
-    if(found) ok++; else miss.push(it.name);
-    statusEl.textContent = `로고 확인 ${ok}/${items.length}`;
-    barEl.style.width = `${Math.round((ok/items.length)*100)}%`;
   }
-  startBtn.disabled = false;
-  statusEl.textContent = `준비 완료 (${ok}/${items.length})`;
-  diagBody.innerHTML = miss.length
-    ? (`<b style="color:#ef4444">못 찾은 파일: ${miss.length}</b><ul>` + miss.map(n=>`<li>${n} → images/<b>${n}</b>.[png/jpg/webp/svg...]</li>`).join('') + '</ul>')
-    : '모든 이미지 찾음';
-  showItem(items[0], false); // 첫 미리보기
 }
 
-/* === 표시/스핀 === */
 function showItem(item, fast=false){
   slot.classList.toggle('fast', fast);
   const cached = srcCache.get(item.base);
   if (cached){ slot.innerHTML = `<img class="logo" alt="${item.name}" src="${cached}">`; }
   else { slot.replaceChildren(fallbackBlock(item.name)); }
 }
+
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+  return arr;
+}
+
 function startSpin(){
   if (intervalId) return;
   result.innerHTML = '';
+  startBtn.disabled = true;
+  // 새 스핀마다 순서를 랜덤 섞기
+  spinOrder = shuffle([...Array(items.length).keys()]);
+  pos = 0;
   slot.classList.add('fast');
   intervalId = setInterval(()=>{
-    idx = (idx + 1) % items.length;
-    showItem(items[idx], true);
+    const i = spinOrder[pos];
+    pos = (pos + 1) % spinOrder.length;
+    showItem(items[i], true);
   }, 50);
+  // 고정 지속시간(원하면 숫자만 바꿔도 됩니다)
   stopTimer = setTimeout(stopSpin, 2200);
 }
+
 function stopSpin(){
   clearInterval(intervalId); intervalId=null; slot.classList.remove('fast');
-  const chosen = items[idx>=0?idx:0];
+  const lastPos = (pos - 1 + spinOrder.length) % spinOrder.length;
+  const chosen = items[spinOrder[lastPos]];
   showItem(chosen, false);
   result.innerHTML = `
     <div class="name">${chosen.name}</div>
@@ -154,10 +141,13 @@ function stopSpin(){
   `;
   startBtn.disabled = false;
 }
-startBtn.addEventListener('click', ()=>{ startBtn.disabled = true; startSpin(); });
 
-preloadAll(); // 시작!
+startBtn.addEventListener('click', startSpin);
+
+(async function init(){
+  await preload();
+  showItem(items[Math.floor(Math.random()*items.length)]); // 첫 미리보기도 랜덤
+})();
 </script>
 </body>
 </html>
-
