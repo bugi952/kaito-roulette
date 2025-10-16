@@ -19,9 +19,13 @@
   .slot.fast img{ filter:blur(1px) saturate(1.1) }
   .logo{ width:88%;height:88%;object-fit:contain; display:block }
   .fallback{ width:100%;height:100%;display:grid;place-items:center;font-weight:900;font-size:64px;color:#fff;background:linear-gradient(135deg,var(--accent),#4b39c5) }
-  .btn{ padding:14px 34px;border:none;border-radius:999px;cursor:pointer;color:#fff;font-weight:800;font-size:18px;background:linear-gradient(135deg,var(--accent),#4b39c5);box-shadow:0 12px 28px rgba(0,0,0,.16);transition:transform .08s, filter .2s }
+  .btn{
+    padding:14px 34px;border:none;border-radius:999px;cursor:pointer;color:#fff;font-weight:800;font-size:18px;
+    background:linear-gradient(135deg,var(--accent),#4b39c5);box-shadow:0 12px 28px rgba(0,0,0,.16);transition:transform .08s, filter .2s
+  }
   .btn:hover{ filter:brightness(1.05) } .btn:active{ transform:translateY(1px) scale(.98) }
-  .btn[disabled]{ opacity:.6; cursor:not-allowed }
+  /* ▶ 비활성화 시 완전 차단 (이중 잠금) */
+  .btn[disabled]{ opacity:.6; cursor:not-allowed; pointer-events:none; }
   #result{ margin-top:18px; min-height:48px }
   #result .name{ font-size:28px; font-weight:900; margin-bottom:6px }
   #result .msg{ font-size:16px; color:#374151 }
@@ -30,11 +34,13 @@
 <body>
   <main>
     <div id="slot" class="slot"><div class="fallback">?</div></div>
-    <button id="startBtn" class="btn" disabled>Loading...</button>
+    <!-- ▶ 처음엔 반드시 비활성화 + 카운트다운 텍스트 -->
+    <button id="startBtn" class="btn" disabled>Loading… 3s</button>
     <div id="result"></div>
   </main>
 
 <script>
+/* ===== 데이터 ===== */
 const items = [
   { name:"Anoma", base:"Anoma" }, { name:"Aptos", base:"Aptos" },
   { name:"Beldex", base:"Beldex" }, { name:"Bitdealer", base:"Bitdealer" },
@@ -58,16 +64,24 @@ const items = [
   { name:"Warden", base:"Warden" }, { name:"XION", base:"XION" }
 ];
 
+/* ===== 엘리먼트 ===== */
 const slot = document.getElementById('slot');
 const startBtn = document.getElementById('startBtn');
 const result = document.getElementById('result');
 
+/* ===== 상태 ===== */
 let intervalId = null;
 let stopTimer  = null;
 let spinOrder  = [];
 let pos        = 0;
 const srcCache = new Map();
 
+/* ▶ 3초 대기 이중 잠금 (절대 우회 불가) */
+const READY_DELAY = 3000;
+let ready = false;
+const readyAt = Date.now() + READY_DELAY;
+
+/* ===== 유틸 ===== */
 function initials(name){
   const parts = (name||'?').trim().split(' ').filter(Boolean);
   return parts.slice(0,2).map(w=>w[0]).join('').toUpperCase();
@@ -157,7 +171,12 @@ function shuffle(arr){
   }
   return arr;
 }
+
+/* ===== 동작 ===== */
 function startSpin(){
+  // ▶ 준비 전에는 어떤 입력도 무시
+  if (!ready) return;
+
   if (startBtn.disabled) return;
   if (intervalId) return;
   result.innerHTML = '';
@@ -194,16 +213,27 @@ function stopSpin(){
 
 startBtn.addEventListener('click', startSpin);
 
-/* ✨ 초기화: 3초 대기 후 버튼 활성화 */
+/* ===== 초기화 ===== */
 (function init(){
+  // 슬롯 기본 표시
   slot.replaceChildren(fallbackBlock('?'));
-  startBtn.disabled = true;
-  startBtn.textContent = 'Loading...';
+
+  // 프리로드는 백그라운드 시작
   preload().catch(console.warn);
-  setTimeout(()=>{
-    startBtn.disabled = false;
-    startBtn.textContent = 'Start';
-  }, 3000);
+
+  // ▶ 카운트다운 UI (3→2→1)
+  function tick(){
+    const left = Math.max(0, readyAt - Date.now());
+    if (left > 0){
+      startBtn.textContent = `Loading… ${Math.ceil(left/1000)}s`;
+      requestAnimationFrame(tick);
+    } else {
+      ready = true;
+      startBtn.disabled = false;
+      startBtn.textContent = 'Start';
+    }
+  }
+  tick();
 })();
 </script>
 </body>
