@@ -1,240 +1,291 @@
 <!doctype html>
 <html lang="ko">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>🎰 Yappers 슬롯 룰렛 (심플 · 랜덤 순서)</title>
-<style>
-  :root{ --accent:#6c5ce7; --bg1:#f5f8ff; --bg2:#eaf3ff }
-  html,body{height:100%;margin:0}
-  body{
-    display:grid;place-items:center;text-align:center;
-    font-family:ui-sans-serif,system-ui,Apple SD Gothic Neo,Malgun Gothic,sans-serif;
-    background:radial-gradient(1200px 600px at 50% -10%, var(--bg1), var(--bg2)); color:#111;
-  }
-  main{ width:min(680px,92vw) }
-  .slot{ width:220px;height:220px;border-radius:28px;background:#fff; display:grid;place-items:center;margin:12px auto 18px; box-shadow:0 22px 45px rgba(0,0,0,.12), inset 0 0 0 1px #e5e7eb; overflow:hidden }
-  .slot.fast{ animation:bump .15s infinite }
-  @keyframes bump{ 0%{transform:translateY(0)} 50%{transform:translateY(2px)} 100%{transform:translateY(0)} }
-  .slot.fast img{ filter:blur(1px) saturate(1.1) }
-  .logo{ width:88%;height:88%;object-fit:contain; display:block }
-  .fallback{ width:100%;height:100%;display:grid;place-items:center;font-weight:900;font-size:64px;color:#fff;background:linear-gradient(135deg,var(--accent),#4b39c5) }
-  .btn{
-    padding:14px 34px;border:none;border-radius:999px;cursor:pointer;color:#fff;font-weight:800;font-size:18px;
-    background:linear-gradient(135deg,var(--accent),#4b39c5);box-shadow:0 12px 28px rgba(0,0,0,.16);transition:transform .08s, filter .2s
-  }
-  .btn:hover{ filter:brightness(1.05) } .btn:active{ transform:translateY(1px) scale(.98) }
-  /* ▶ 비활성화 시 완전 차단 (이중 잠금) */
-  .btn[disabled]{ opacity:.6; cursor:not-allowed; pointer-events:none; }
-  #result{ margin-top:18px; min-height:48px }
-  #result .name{ font-size:28px; font-weight:900; margin-bottom:6px }
-  #result .msg{ font-size:16px; color:#374151 }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>할 일 보드</title>
+  <style>
+    :root{
+      --bg:#f7f9fc;
+      --card:#ffffff;
+      --accent:#6c5ce7;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --border:#e5e7eb;
+      --shadow:0 12px 30px rgba(0,0,0,.08);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      background:radial-gradient(1200px 600px at 50% -10%, #eef2ff, var(--bg));
+      font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+      color:var(--text);
+      display:flex;
+      justify-content:center;
+      padding:38px 18px 48px;
+    }
+    main{ width:min(1080px, 100%); }
+    h1{ margin:0 0 12px; font-size:32px; font-weight:900; letter-spacing:-0.02em; }
+    .subtitle{ margin:0 0 24px; color:var(--muted); font-size:16px; }
+    .input-bar{ display:flex; gap:12px; align-items:center; margin-bottom:20px; }
+    .input-bar input{
+      flex:1;
+      padding:14px 16px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      font-size:16px;
+      outline:none;
+      transition:border-color .2s, box-shadow .2s;
+      background:#fff;
+    }
+    .input-bar input:focus{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(108,92,231,.18); }
+    .input-bar button{
+      padding:14px 22px;
+      border:none;
+      border-radius:12px;
+      background:linear-gradient(135deg, var(--accent), #4b39c5);
+      color:#fff;
+      font-weight:800;
+      font-size:16px;
+      cursor:pointer;
+      box-shadow:var(--shadow);
+      transition:transform .08s, filter .15s;
+    }
+    .input-bar button:hover{ filter:brightness(1.05); }
+    .input-bar button:active{ transform:translateY(1px) scale(.99); }
+    .board{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(280px,1fr));
+      gap:16px;
+      align-items:start;
+    }
+    @media (max-width: 720px){
+      .board{ grid-template-columns:1fr; }
+    }
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:14px 14px 12px;
+      box-shadow:var(--shadow);
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      cursor:grab;
+      transition:transform .1s ease, box-shadow .1s ease, border-color .2s;
+      position:relative;
+    }
+    .card:active{ cursor:grabbing; }
+    .card.dragging{ opacity:.75; transform:scale(.98); box-shadow:0 6px 18px rgba(0,0,0,.12); }
+    .card.drop-target{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(108,92,231,.18); }
+    .checkbox{
+      margin-top:3px;
+      width:20px;height:20px;
+      accent-color:var(--accent);
+      cursor:pointer;
+      flex-shrink:0;
+    }
+    .content{ flex:1; }
+    .title{ margin:0; font-size:17px; font-weight:800; }
+    .title.done{ text-decoration:line-through; color:var(--muted); }
+    .meta{ margin-top:6px; font-size:13px; color:var(--muted); }
+    .actions{ display:flex; gap:10px; }
+    .pill{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      background:#f4f5fb;
+      color:var(--muted);
+      border:1px solid var(--border);
+    }
+    .delete-btn{
+      border:none;
+      background:none;
+      color:#ef4444;
+      font-weight:700;
+      cursor:pointer;
+      padding:6px 10px;
+      border-radius:10px;
+      transition:background .15s;
+    }
+    .delete-btn:hover{ background:rgba(239,68,68,.08); }
+    .empty{
+      grid-column:1 / -1;
+      text-align:center;
+      padding:36px 18px;
+      color:var(--muted);
+      border:1px dashed var(--border);
+      border-radius:12px;
+      background:rgba(255,255,255,.6);
+    }
+  </style>
 </head>
 <body>
   <main>
-    <div id="slot" class="slot"><div class="fallback">?</div></div>
-    <!-- ▶ 처음엔 반드시 비활성화 + 카운트다운 텍스트 -->
-    <button id="startBtn" class="btn" disabled>Loading… 3s</button>
-    <div id="result"></div>
+    <h1>오늘의 할 일 보드</h1>
+    <p class="subtitle">마우스로 카드를 끌어 두 칸짜리 보드 위에서 자유롭게 배치하세요.</p>
+
+    <form class="input-bar" id="todoForm">
+      <input id="todoInput" type="text" placeholder="할 일을 입력하세요" autocomplete="off" required />
+      <button type="submit">추가</button>
+    </form>
+
+    <section class="board" id="board" aria-live="polite"></section>
   </main>
 
-<script>
-/* ===== 데이터 ===== */
-const items = [
-  { name:"Anoma", base:"Anoma" }, { name:"Aptos", base:"Aptos" },
-  { name:"Beldex", base:"Beldex" }, { name:"Bitdealer", base:"Bitdealer" },
-  { name:"Bless", base:"Bless" }, { name:"Cysic", base:"Cysic" },
-  { name:"Falcon Finance", base:"Falcon Finance" }, { name:"GOAT Network", base:"GOAT Network" },
-  { name:"Hana", base:"Hana" }, { name:"Huma Finance", base:"Huma Finance" },
-  { name:"Hyperpie", base:"Hyperpie" }, { name:"Infinex", base:"Infinex" },
-  { name:"Lombard", base:"Lombard" }, { name:"Lumiterra", base:"Lumiterra" },
-  { name:"Mavryk Network", base:"Mavryk Network" }, { name:"Metawin", base:"Metawin" },
-  { name:"Mira", base:"Mira" }, { name:"MultiBank", base:"MultiBank" },
-  { name:"Multipli.fi", base:"Multipli.fi" }, { name:"Novastro", base:"Novastro" },
-  { name:"peaq", base:"peaq" }, { name:"Polygon", base:"Polygon" },
-  { name:"Puffpaw", base:"Puffpaw" }, { name:"Pyth", base:"Pyth" },
-  { name:"Somnia", base:"Somnia" }, { name:"Surf", base:"Surf" },
-  { name:"Talus Labs", base:"Talus Labs" }, { name:"Theoriq", base:"Theoriq" },
-  { name:"Turtle", base:"Turtle" }, { name:"UXLINK", base:"UXLINK" },
-  { name:"Brevis", base:"Brevis" }, { name:"Billions", base:"Billions" },
-  { name:"Everlyn", base:"Everlyn" }, { name:"Monad", base:"Monad" },
-  { name:"Sentient", base:"Sentient" }, { name:"momentum", base:"momentum" },
-  { name:"Sonic", base:"Sonic" }, { name:"Allora Network", base:"Allora Network" },
-  { name:"Warden", base:"Warden" }, { name:"XION", base:"XION" }
-];
+  <script>
+    const form = document.getElementById('todoForm');
+    const input = document.getElementById('todoInput');
+    const board = document.getElementById('board');
 
-/* ===== 엘리먼트 ===== */
-const slot = document.getElementById('slot');
-const startBtn = document.getElementById('startBtn');
-const result = document.getElementById('result');
+    const STORAGE_KEY = 'todo-board-items';
+    let todos = loadTodos();
+    let dragIndex = null;
 
-/* ===== 상태 ===== */
-let intervalId = null;
-let stopTimer  = null;
-let spinOrder  = [];
-let pos        = 0;
-const srcCache = new Map();
-
-/* ▶ 3초 대기 이중 잠금 (절대 우회 불가) */
-const READY_DELAY = 3000;
-let ready = false;
-const readyAt = Date.now() + READY_DELAY;
-
-/* ===== 유틸 ===== */
-function initials(name){
-  const parts = (name||'?').trim().split(' ').filter(Boolean);
-  return parts.slice(0,2).map(w=>w[0]).join('').toUpperCase();
-}
-function fallbackBlock(name){
-  const d=document.createElement('div');
-  d.className='fallback';
-  d.textContent=initials(name||'?');
-  return d;
-}
-const EXTS = ["webp","png","jpg","jpeg","svg"];
-function filenameCandidates(base){
-  const cands = [
-    base,
-    base.replace(/\s+/g,'_'),
-    base.replace(/\s+/g,'-'),
-    base.replace(/\./g,''),
-    base.replace(/\s+/g,'').replace(/\./g,''),
-  ];
-  return [...new Set(cands)];
-}
-function loadOnce(src, timeoutMs=7000){
-  return new Promise((resolve)=>{
-    const img = new Image();
-    const t = setTimeout(()=>{ cleanup(); resolve(null); }, timeoutMs);
-    function cleanup(){ clearTimeout(t); img.onload = img.onerror = null; }
-    img.onload = ()=>{ cleanup(); resolve(src); };
-    img.onerror = ()=>{ cleanup(); resolve(null); };
-    img.src = src;
-  });
-}
-async function tryFindImage(base){
-  const bases = filenameCandidates(base);
-  for(const b of bases){
-    const enc = encodeURIComponent(b);
-    for(const ext of EXTS){
-      const src = `images/${enc}.${ext}`;
-      const ok = await loadOnce(src);
-      if (ok) return ok;
-    }
-  }
-  return null;
-}
-async function preload(all = items){
-  const CONCURRENCY = 6;
-  let i = 0;
-  async function worker(){
-    while (i < all.length){
-      const idx = i++;
-      const it = all[idx];
-      if (!srcCache.has(it.base)){
-        const found = await tryFindImage(it.base);
-        srcCache.set(it.base, found);
+    function loadTodos(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      }catch(err){
+        console.warn('로컬스토리지에서 할 일을 불러오지 못했습니다.', err);
+        return [];
       }
     }
-  }
-  await Promise.all(Array.from({length:CONCURRENCY}, worker));
-}
-function showItem(item, fast=false){
-  slot.classList.toggle('fast', fast);
-  const cached = srcCache.get(item.base);
-  if (cached){
-    slot.innerHTML = `<img class="logo" alt="${item.name}" src="${cached}">`;
-  }else{
-    ensureImage(item);
-    slot.replaceChildren(fallbackBlock(item.name));
-  }
-}
-const pendingLookups = new Set();
-async function ensureImage(item){
-  if (srcCache.has(item.base)) return;
-  if (pendingLookups.has(item.base)) return;
-  pendingLookups.add(item.base);
-  const found = await tryFindImage(item.base);
-  srcCache.set(item.base, found ?? null);
-  pendingLookups.delete(item.base);
-  const current = slot.querySelector('img')?.alt;
-  if (current !== item.name && found) return;
-  if (found){
-    slot.innerHTML = `<img class="logo" alt="${item.name}" src="${found}">`;
-  }
-}
-function shuffle(arr){
-  for(let i=arr.length-1;i>0;i--){
-    const j=Math.floor(Math.random()*(i+1));
-    [arr[i],arr[j]]=[arr[j],arr[i]];
-  }
-  return arr;
-}
 
-/* ===== 동작 ===== */
-function startSpin(){
-  // ▶ 준비 전에는 어떤 입력도 무시
-  if (!ready) return;
-
-  if (startBtn.disabled) return;
-  if (intervalId) return;
-  result.innerHTML = '';
-  startBtn.disabled = true;
-
-  spinOrder = shuffle([...Array(items.length).keys()]);
-  pos = 0;
-  slot.classList.add('fast');
-
-  intervalId = setInterval(()=>{
-    const i = spinOrder[pos];
-    pos = (pos + 1) % spinOrder.length;
-    showItem(items[i], true);
-  }, 50);
-
-  stopTimer = setTimeout(stopSpin, 2000);
-}
-function stopSpin(){
-  if (intervalId) { clearInterval(intervalId); intervalId = null; }
-  if (stopTimer)  { clearTimeout(stopTimer);  stopTimer  = null; }
-  slot.classList.remove('fast');
-
-  const lastPos = (pos - 1 + spinOrder.length) % spinOrder.length;
-  const chosen = items[spinOrder[lastPos]];
-  showItem(chosen, false);
-
-  result.innerHTML = `
-    <div class="name">${chosen.name}</div>
-    <div class="msg">Congratulations! You have been selected as "<b>${chosen.name}</b>" Yapper.</div>
-  `;
-  startBtn.disabled = false;
-  startBtn.textContent = 'Start';
-}
-
-startBtn.addEventListener('click', startSpin);
-
-/* ===== 초기화 ===== */
-(function init(){
-  // 슬롯 기본 표시
-  slot.replaceChildren(fallbackBlock('?'));
-
-  // 프리로드는 백그라운드 시작
-  preload().catch(console.warn);
-
-  // ▶ 카운트다운 UI (3→2→1)
-  function tick(){
-    const left = Math.max(0, readyAt - Date.now());
-    if (left > 0){
-      startBtn.textContent = `Loading… ${Math.ceil(left/1000)}s`;
-      requestAnimationFrame(tick);
-    } else {
-      ready = true;
-      startBtn.disabled = false;
-      startBtn.textContent = 'Start';
+    function saveTodos(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
     }
-  }
-  tick();
-})();
-</script>
+
+    function render(){
+      board.innerHTML = '';
+      if (!todos.length){
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = '아직 추가된 할 일이 없습니다.';
+        board.appendChild(empty);
+        return;
+      }
+
+      todos.forEach((todo, index)=>{
+        const card = document.createElement('article');
+        card.className = 'card';
+        card.draggable = true;
+        card.dataset.index = index;
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'checkbox';
+        checkbox.checked = !!todo.done;
+        checkbox.addEventListener('change', ()=>{
+          todos[index].done = checkbox.checked;
+          saveTodos();
+          render();
+        });
+
+        const content = document.createElement('div');
+        content.className = 'content';
+
+        const title = document.createElement('p');
+        title.className = 'title' + (todo.done ? ' done' : '');
+        title.textContent = todo.text;
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const date = new Date(todo.createdAt);
+        meta.textContent = `${date.toLocaleDateString()} · ${date.toLocaleTimeString()}`;
+
+        content.appendChild(title);
+        content.appendChild(meta);
+
+        const actions = document.createElement('div');
+        actions.className = 'actions';
+        const badge = document.createElement('span');
+        badge.className = 'pill';
+        badge.textContent = '카드를 끌어 순서 변경';
+        actions.appendChild(badge);
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'delete-btn';
+        delBtn.textContent = '삭제';
+        delBtn.addEventListener('click', ()=>{
+          todos.splice(index, 1);
+          saveTodos();
+          render();
+        });
+        actions.appendChild(delBtn);
+
+        card.appendChild(checkbox);
+        card.appendChild(content);
+        card.appendChild(actions);
+
+        attachDragEvents(card);
+        board.appendChild(card);
+      });
+    }
+
+    function attachDragEvents(card){
+      card.addEventListener('dragstart', (e)=>{
+        dragIndex = Number(card.dataset.index);
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+
+      card.addEventListener('dragend', ()=>{
+        dragIndex = null;
+        card.classList.remove('dragging');
+        clearDropTargets();
+      });
+
+      card.addEventListener('dragover', (e)=>{
+        e.preventDefault();
+        const targetIndex = Number(card.dataset.index);
+        if (dragIndex === null || dragIndex === targetIndex) return;
+        highlightTarget(card);
+      });
+
+      card.addEventListener('dragleave', ()=>{
+        card.classList.remove('drop-target');
+      });
+
+      card.addEventListener('drop', (e)=>{
+        e.preventDefault();
+        const targetIndex = Number(card.dataset.index);
+        if (dragIndex === null || dragIndex === targetIndex) return;
+        moveTodo(dragIndex, targetIndex);
+        clearDropTargets();
+      });
+    }
+
+    function clearDropTargets(){
+      board.querySelectorAll('.drop-target').forEach(el=>el.classList.remove('drop-target'));
+    }
+
+    function highlightTarget(el){
+      clearDropTargets();
+      el.classList.add('drop-target');
+    }
+
+    function moveTodo(from, to){
+      const [item] = todos.splice(from, 1);
+      todos.splice(to, 0, item);
+      saveTodos();
+      render();
+    }
+
+    form.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      todos.unshift({ text, done:false, createdAt:Date.now() });
+      saveTodos();
+      render();
+      input.value='';
+      input.focus();
+    });
+
+    render();
+  </script>
 </body>
 </html>
